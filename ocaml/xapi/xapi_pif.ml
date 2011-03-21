@@ -17,7 +17,55 @@ open D
 module L = Debug.Debugger (struct let name="license" end)
 
 open Listext
+open Pervasiveext
 open Stringext
+
+let refresh_internal ~__context ~self =
+
+	let device = Db.PIF.get_device ~__context ~self in
+	let mac_old = Db.PIF.get_MAC ~__context ~self in
+	let mtu_old = Db.PIF.get_MTU ~__context ~self in
+
+	let refresh_mac mac_new =
+		if mac_old <> mac_new then begin
+			debug "PIF %s MAC <- %s" (Ref.string_of self) mac_new;
+			Db.PIF.set_MAC ~__context ~self ~value:mac_new
+		end in
+
+	let refresh_mtu mtu_new =
+		if mtu_old <> mtu_new then begin
+			debug "PIF %s MTU <- %Ld" (Ref.string_of self) mtu_new;
+			Db.PIF.set_MTU ~__context ~self ~value:mtu_new
+		end in
+
+	let maybe_refresh_mac () =
+		(* We erase the MAC address if it isn't possible to
+		 * read an updated value from the underlying device.
+		 *)
+		refresh_mac
+			(try Netdev.get_address device with _ -> "") in
+
+	let maybe_refresh_mtu () =
+		(* We leave the MTU unchanged if it isn't possible to
+		 * read an updated value from the underlying device.
+		 *)
+		Opt.iter
+			(refresh_mtu)
+			(Opt.of_exception
+				(fun () -> Int64.of_string (Netdev.get_mtu device))) in
+
+	maybe_refresh_mac ();
+	maybe_refresh_mtu ()
+
+let refresh ~__context ~host ~self =
+	assert (host = Helpers.get_localhost ~__context);
+	refresh_internal ~__context ~self
+
+let refresh_all ~__context ~host =
+	assert (host = Helpers.get_localhost ~__context);
+	List.iter
+		(fun (self, _) -> refresh_internal ~__context ~self)
+		(Helpers.get_my_pifs ~__context)
 
 let bridge_naming_convention (device: string) =
 	if String.startswith "eth" device
