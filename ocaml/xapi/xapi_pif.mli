@@ -130,16 +130,6 @@ val read_bridges_from_inventory : unit -> string list
 val find_or_create_network :
   string -> string -> __context:Context.t -> [ `network ] Ref.t
 
-(** Convenient lookup tables for scanning etc *)
-type tables = {
-	device_to_mac_table : (string * string) list;
-	device_to_biosname_table : (string * string) list;
-	pif_to_device_table : (API.ref_PIF * string) list;
-}
-
-(** Construct and return lookup {!tables} with information about the network interfaces *)
-val make_tables : __context:Context.t -> host:[ `host ] Ref.t -> tables
-
 (** Return true if this PIF is my management interface, according to xensource-inventory *)
 val is_my_management_pif : __context:Context.t -> self:[ `PIF ] Ref.t -> bool
 
