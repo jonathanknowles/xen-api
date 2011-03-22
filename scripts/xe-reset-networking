@@ -174,7 +174,9 @@ if __name__ == "__main__":
 				f.write('DNS=' + options.dns + '\n')
 	finally:
 		f.close()
-	
+
+	os.system("/etc/sysconfig/network-scripts/interface-rename.py --reset-to-install")
+
 	# Reboot
 	os.system("/sbin/reboot")
 
