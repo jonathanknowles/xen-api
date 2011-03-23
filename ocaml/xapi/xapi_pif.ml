@@ -347,6 +347,11 @@ let introduce_internal
 
 	let is_vlan = vLAN >= 0L in
 
+	(* Assert that a local PIF with the given device name does not already exist *)
+	if List.mem device (List.map snd t.pif_to_device_table)
+	then raise (Api_errors.Server_error
+		(Api_errors.duplicate_pif_device_name, [device]));
+
 	(* Assert that a network interface exists with *
 	 * the specified device name and MAC address.  *)
 	if not (List.mem (device, mAC) t.device_to_mac_table) && not (is_vlan)
@@ -454,18 +459,6 @@ let introduce ~__context ~host ~mAC ~device =
 
 	let mAC = String.lowercase mAC in (* just a convention *)
 	let t = make_tables ~__context ~host in
-
-	(* Assert that a local PIF with the given device name does not already exist *)
-	if List.mem device (List.map snd t.pif_to_device_table)
-	then raise (Api_errors.Server_error
-		(Api_errors.duplicate_pif_device_name, [device]));
-
-	(* Assert that a network interface exists with *
-	 * the specified device name and MAC address.  *)
-	if not (List.mem (device, mAC) t.device_to_mac_table)
-	then raise (Api_errors.Server_error (Api_errors
-		.could_not_find_network_interface_with_specified_device_name_and_mac_address,
-		[device; mAC]));
 
 	info
 		"Introducing PIF: device = %s; MAC = %s"
