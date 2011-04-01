@@ -18,6 +18,7 @@
 open Stringext
 open Printf
 open Xapi_vm_memory_constraints
+open Listext
 
 module D=Debug.Debugger(struct let name="xapi" end)
 open D
@@ -99,7 +100,8 @@ let set_is_a_template ~__context ~self ~value =
 	Db.VM.set_is_a_template ~__context ~self ~value
 
 let create ~__context ~name_label ~name_description
-           ~user_version ~is_a_template ~affinity
+           ~user_version ~is_a_template
+           ~affinity
            ~memory_target
            ~memory_static_max
            ~memory_dynamic_max
@@ -121,6 +123,8 @@ let create ~__context ~name_label ~name_description
 		 ~start_delay
 		 ~shutdown_delay
 		 ~order
+		 ~suspend_SR 
+		 ~version
 	   : API.ref_VM =
 
 	(* NB parameter validation is delayed until VM.start *)
@@ -187,6 +191,8 @@ let create ~__context ~name_label ~name_description
 		~start_delay
 		~shutdown_delay
 		~order
+		~suspend_SR
+		~version
 		;
 	Db.VM.set_power_state ~__context ~self:vm_ref ~value:`Halted;
 	Xapi_vm_lifecycle.update_allowed_operations ~__context ~self:vm_ref;
@@ -972,3 +978,19 @@ let copy_guest_metrics ~__context ~vm =
 		ref
 	with _ ->
 		Ref.null
+
+(* Populate last_boot_CPU_flags with the vendor and feature set of the given host's CPU. *)
+let populate_cpu_flags ~__context ~vm ~host =
+	let add_or_replace (key, value) values =
+		if List.mem_assoc key values then
+			List.replace_assoc key value values
+		else
+			(key, value) :: values
+	in
+	let cpu_info = Db.Host.get_cpu_info ~__context ~self:host in
+	let flags = ref (Db.VM.get_last_boot_CPU_flags ~__context ~self:vm) in
+	if List.mem_assoc "vendor" cpu_info then
+		flags := add_or_replace ("vendor", List.assoc "vendor" cpu_info) !flags;
+	if List.mem_assoc "features" cpu_info then
+		flags := add_or_replace ("features", List.assoc "features" cpu_info) !flags;
+	Db.VM.set_last_boot_CPU_flags ~__context ~self:vm ~value:!flags;
